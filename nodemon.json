@@ -1,0 +1,10 @@
+{
+    "ext": "ts",
+    "ignore": [
+        ".git",
+        "node_modules",
+        ".idea",
+        "build"
+    ],
+    "exec": "tsc & npm run start"
+}

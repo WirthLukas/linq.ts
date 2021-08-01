@@ -1,3 +1,11 @@
+## own definitions ##
+#####################
+
+build/
+
+## Github definitions ##
+########################
+
 # Logs
 logs
 *.log
