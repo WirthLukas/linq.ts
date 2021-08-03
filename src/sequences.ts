@@ -31,7 +31,7 @@ interface IterableIterator<T> extends Iterator<T> {
 
 import { ISequence, Predicate, Selector } from './types';
 
-abstract class SequenceBase<TElement, TOut> implements ISequence<TOut> {
+export abstract class SequenceBase<TElement, TOut> implements ISequence<TOut> {
 	constructor(protected source: Iterator<TElement>) {}
 
 	public abstract next(): IteratorResult<TOut>;
@@ -50,7 +50,7 @@ abstract class SequenceBase<TElement, TOut> implements ISequence<TOut> {
 
 	public count(predicate?: Predicate<TOut>): number {
 		let count = 0;
-		predicate ??= _ => true;
+		// predicate ??= _ => true;
 
 		for (const element of this) {
 			// if predicate is undefinded => first check is true, program skips second check
@@ -61,6 +61,59 @@ abstract class SequenceBase<TElement, TOut> implements ISequence<TOut> {
 		}
 
 		return count;
+	}
+
+	public first(predicate?: Predicate<TOut>): TOut {
+		const element: TOut | null = this.firstOrDefault(predicate);
+
+		if (element === null) {
+			throw new Error('Sequence contains no element');
+		}
+
+		return element;
+	}
+
+	public firstOrDefault(predicate?: Predicate<TOut>): TOut | null {
+		// works because implementation of next method should call next method of source
+		for (const element of this) {
+			if (predicate === undefined || predicate(element)) {
+				return element;
+			}
+		}
+
+		return null;
+	}
+
+	public forEach(callback: (element: TOut, index: number) => void): void {
+		let i = 0;
+		let done: boolean | undefined;
+		let value: TOut;
+
+		do {
+			({ done, value } = this.next());
+			callback(value, i);
+			i++;
+		} while (!done);
+	}
+
+	public any(predicate?: Predicate<TOut>): boolean {
+		for (const element of this) {
+			if (predicate === undefined || predicate(element)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public all(predicate: Predicate<TOut>): boolean {
+		for (const element of this) {
+			if (!predicate(element)) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
 
@@ -95,16 +148,28 @@ export class ConditionalSequence<TElement> extends Sequence<TElement> {
 }
 
 export class TransformSequence<TElement, TOut> extends SequenceBase<TElement, TOut> {
-	constructor(protected source: Iterator<TElement>, private transform: Selector<TElement, TOut>) {
+	constructor(source: Iterator<TElement>, private transform: Selector<TElement, TOut>) {
 		super(source);
 	}
 
-	public next(): IteratorResult<TOut> {
+	public override next(): IteratorResult<TOut> {
 		let { done, value } = this.source.next();
 
 		return {
 			done,
 			value: this.transform(value),
 		};
+	}
+}
+
+export class GroupedSequence<TElement, TKey> extends Sequence<TElement> {
+	private groupMap: Map<number, TElement> = new Map();
+
+	constructor(source: Iterator<TElement>, private keySelector: Selector<TElement, TKey>) {
+		super(source);
+	}
+
+	public override next(): IteratorResult<TElement> {
+		throw '';
 	}
 }
