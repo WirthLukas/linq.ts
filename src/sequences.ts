@@ -115,6 +115,10 @@ export abstract class SequenceBase<TElement, TOut> implements ISequence<TOut> {
 
 		return true;
 	}
+
+	public groupBy<TKey>(keySelector: Selector<TOut, TKey>): ISequence<IGrouping<TKey, TOut>> {
+		return new GroupedSequence<TOut, TKey>(this, keySelector);
+	}
 }
 
 export class Sequence<TElement> extends SequenceBase<TElement, TElement> {
@@ -162,14 +166,57 @@ export class TransformSequence<TElement, TOut> extends SequenceBase<TElement, TO
 	}
 }
 
-export class GroupedSequence<TElement, TKey> extends Sequence<TElement> {
-	private groupMap: Map<number, TElement> = new Map();
+interface IGrouping<TKey, TElement> extends Sequence<TElement> {
+	get key(): TKey;
+}
 
-	constructor(source: Iterator<TElement>, private keySelector: Selector<TElement, TKey>) {
+class Grouping<TKey, TElement> extends Sequence<TElement> implements IGrouping<TKey, TElement> {
+	constructor(private readonly _key: TKey, source: Iterator<TElement>) {
 		super(source);
 	}
 
-	public override next(): IteratorResult<TElement> {
-		throw '';
+	get key(): TKey {
+		return this._key;
+	}
+}
+
+export class GroupedSequence<TElement, TKey> extends SequenceBase<TElement, IGrouping<TKey, TElement>> {
+	private readonly groupMapIterator: IterableIterator<[TKey, TElement[]]>;
+
+	constructor(source: Iterator<TElement>, private keySelector: Selector<TElement, TKey>) {
+		super(source);
+		this.groupMapIterator = this.initMap();
+	}
+
+	private initMap(): IterableIterator<[TKey, TElement[]]> {
+		// zuerst muss über alle elemente drüber itereriert werden um die gruppen zu erstellen
+		// danach kann man gruppe für gruppe in der next Methode zurückgeben
+		let groupMap = new Map<TKey, TElement[]>();
+		let { done, value } = this.source.next();
+
+		while (!done) {
+			let key = this.keySelector(value);
+
+			if (!groupMap.has(key)) {
+				groupMap.set(key, [value]);
+			} else {
+				groupMap.get(key)?.push(value);
+			}
+
+			// destructuring with existing variables works with outer parentheses
+			({ done, value } = this.source.next());
+		}
+
+		return groupMap[Symbol.iterator]();
+	}
+
+	public override next(): IteratorResult<IGrouping<TKey, TElement>> {
+		let { done, value } = this.groupMapIterator.next();
+
+		// if done is true just take the value of the iterator, because we don't havo to work with that value
+		return {
+			done,
+			value: done ? value : new Grouping(value[0] as TKey, (value[1] as TElement[])[Symbol.iterator]()),
+		};
 	}
 }
