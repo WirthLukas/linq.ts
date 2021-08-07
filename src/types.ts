@@ -10,4 +10,9 @@ export interface ISequence<T> extends IterableIterator<T> {
 	forEach(callback: (element: T, index: number) => void): void;
 	any(predicate?: Predicate<T>): boolean;
 	all(predicate: Predicate<T>): boolean;
+	groupBy<TKey>(keySelector: Selector<T, TKey>): ISequence<IGrouping<TKey, T>>;
+}
+
+export interface IGrouping<TKey, TElement> extends ISequence<TElement> {
+	get key(): TKey;
 }

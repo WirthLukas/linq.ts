@@ -29,7 +29,7 @@ interface IterableIterator<T> extends Iterator<T> {
 
 */
 
-import { ISequence, Predicate, Selector } from './types';
+import { IGrouping, ISequence, Predicate, Selector } from './types';
 
 export abstract class SequenceBase<TElement, TOut> implements ISequence<TOut> {
 	constructor(protected source: Iterator<TElement>) {}
@@ -85,15 +85,20 @@ export abstract class SequenceBase<TElement, TOut> implements ISequence<TOut> {
 	}
 
 	public forEach(callback: (element: TOut, index: number) => void): void {
-		let i = 0;
+		let index = 0;
 		let done: boolean | undefined;
 		let value: TOut;
 
-		do {
-			({ done, value } = this.next());
-			callback(value, i);
-			i++;
-		} while (!done);
+		for ({ done, value } = this.next(); !done; { done, value } = this.next()) {
+			callback(value, index);
+			index++;
+		}
+
+		// do {
+		// 	({ done, value } = this.next());
+		// 	callback(value, i);
+		// 	i++;
+		// } while (!done);
 	}
 
 	public any(predicate?: Predicate<TOut>): boolean {
@@ -161,13 +166,9 @@ export class TransformSequence<TElement, TOut> extends SequenceBase<TElement, TO
 
 		return {
 			done,
-			value: this.transform(value),
+			value: done ? value : this.transform(value),
 		};
 	}
-}
-
-interface IGrouping<TKey, TElement> extends Sequence<TElement> {
-	get key(): TKey;
 }
 
 class Grouping<TKey, TElement> extends Sequence<TElement> implements IGrouping<TKey, TElement> {
